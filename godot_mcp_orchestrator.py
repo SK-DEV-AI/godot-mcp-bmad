@@ -5,21 +5,24 @@ import websockets
 class GodotMcpOrchestrator:
     """
     Connects to a JSON-RPC 2.0 server over WebSockets and executes a list of commands.
+    Returns a dictionary indicating the outcome.
     """
 
     def __init__(self):
         self._id_counter = itertools.count(1)
 
-    async def execute_plan(self, command_list: list, server_uri: str):
+    async def execute_plan(self, command_list: list, server_uri: str) -> dict:
         """
         Connects to the Godot MCP server and executes a list of commands.
+        Returns a dictionary with a 'success' key. On failure, it includes
+        'failed_command' and 'error_message'.
         """
         print(f"Connecting to Godot MCP server at {server_uri}...")
         try:
             async with websockets.connect(server_uri) as websocket:
                 print("Connection established.")
 
-                # FIX #3: Consume the initial 'welcome' message from the server.
+                # Consume the initial 'welcome' message from the server.
                 welcome_message = await websocket.recv()
                 print(f"Server handshake complete. Received: {welcome_message}")
 
@@ -29,8 +32,9 @@ class GodotMcpOrchestrator:
                     params = command_data.get("parameters", {})
 
                     if not method:
-                        print(f"Error: Command at index {i} is missing 'command' key. Halting.")
-                        return
+                        error_msg = f"Command at index {i} is missing 'command' key."
+                        print(f"ERROR: {error_msg}")
+                        return {'success': False, 'failed_command': command_data, 'error_message': error_msg}
 
                     request_id = next(self._id_counter)
                     payload = {
@@ -47,24 +51,28 @@ class GodotMcpOrchestrator:
                     response = json.loads(response_str)
 
                     if response.get("id") != request_id:
-                        print(f"DEBUG: Raw server response: {response}")
-                        print(f"Error: Received response for unexpected ID. Expected {request_id}, got {response.get('id')}. Halting.")
-                        return
+                        error_msg = f"Received response for unexpected ID. Expected {request_id}, got {response.get('id')}."
+                        print(f"ERROR: {error_msg}\nDEBUG: Raw server response: {response}")
+                        return {'success': False, 'failed_command': command_data, 'error_message': error_msg}
 
                     if "error" in response:
-                        print("\n--- EXECUTION FAILED ---")
+                        error_msg = f"Server returned an error: {response['error'].get('message', 'Unknown error')}"
+                        print(f"\n--- EXECUTION FAILED ---")
                         print(f"Error executing command: {method}")
-                        print(f"Parameters: {json.dumps(params, indent=2)}")
-                        print(f"Server error: {json.dumps(response['error'], indent=2)}")
+                        print(f"Server error details: {json.dumps(response['error'], indent=2)}")
                         print("--------------------------")
-                        return
+                        return {'success': False, 'failed_command': command_data, 'error_message': error_msg}
 
                     print(f"Command '{method}' executed successfully.")
 
                 print("\nExecution completed successfully.")
+                return {'success': True}
 
         except websockets.exceptions.ConnectionClosed as e:
-            print(f"\nError: Connection to the server failed or was closed: {e}")
-            print("Please ensure the Godot MCP server is running in your Godot project.")
+            error_msg = f"Connection to the server failed or was closed: {e}. Please ensure the Godot MCP server is running."
+            print(f"\nERROR: {error_msg}")
+            return {'success': False, 'failed_command': None, 'error_message': error_msg}
         except Exception as e:
-            print(f"\nAn unexpected error occurred: {e}")
+            error_msg = f"An unexpected error occurred: {e}"
+            print(f"\nERROR: {error_msg}")
+            return {'success': False, 'failed_command': None, 'error_message': error_msg}
