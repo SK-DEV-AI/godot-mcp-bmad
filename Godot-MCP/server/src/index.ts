@@ -16,6 +16,7 @@ import { OpenAIClient } from './llm-connectors/openai_client.js';
 import { GroqClient } from './llm-connectors/groq_client.js';
 import { OpenRouterClient } from './llm-connectors/openrouter_client.js';
 import { OllamaClient } from './llm-connectors/ollama_client.js';
+import { GeminiClient } from './llm-connectors/gemini_client.js';
 
 import { sceneListResource, sceneStructureResource } from './resources/scene_resources.js';
 import { scriptResource, scriptListResource, scriptMetadataResource } from './resources/script_resources.js';
@@ -25,30 +26,33 @@ import { editorStateResource, selectedNodeResource, currentScriptResource } from
 const MAX_RETRIES = 3;
 
 async function main() {
-  console.error('Starting Godot MCP server...');
+  console.error('Starting Godot MCP server with full BMAD integration...');
 
   const server = new FastMCP({
-    name: 'GodotMCP-BMAD-Enhanced',
-    version: '2.0.0',
+    name: 'GodotMCP-BMAD-Intelligent-Server',
+    version: '3.0.0',
   });
 
   const bmadExecutePromptTool: McpTool = {
     name: 'bmad-execute-prompt',
-    description: 'Takes a high-level prompt and uses the BMAD agent workflow to generate and execute a command plan.',
+    description: 'Takes a high-level prompt and uses the full BMAD agent workflow to generate and execute a command plan.',
     schema: z.object({
       prompt: z.string().describe('The high-level user request.'),
-      llm_provider: z.enum(['openai', 'groq', 'openrouter', 'ollama']).default('ollama').describe('The LLM provider to use.'),
     }),
     handler: async (params) => {
-      console.log(`Received bmad-execute-prompt with provider: ${params.llm_provider}`);
+      const provider = process.env.DEFAULT_LLM_PROVIDER || 'ollama';
+      console.log(`Received bmad-execute-prompt. Using server-configured provider: ${provider}`);
 
       const clientMap: { [key: string]: new () => BaseLlmClient } = {
-          openai: OpenAIClient, groq: GroqClient,
-          openrouter: OpenRouterClient, ollama: OllamaClient,
+          openai: OpenAIClient,
+          groq: GroqClient,
+          openrouter: OpenRouterClient,
+          ollama: OllamaClient,
+          gemini: GeminiClient
       };
 
-      const ClientClass = clientMap[params.llm_provider];
-      if (!ClientClass) throw new Error(`Invalid LLM provider specified: ${params.llm_provider}`);
+      const ClientClass = clientMap[provider];
+      if (!ClientClass) throw new Error(`Invalid LLM provider configured in .env: ${provider}`);
 
       const llmClient = new ClientClass();
       const workflowEngine = new BMADWorkflowEngine(llmClient);
@@ -66,7 +70,6 @@ async function main() {
       for (let i = 0; i < MAX_RETRIES; i++) {
         console.log(`\n--- EXECUTION ATTEMPT ${i + 1}/${MAX_RETRIES} ---`);
         let executionFailed = false;
-        let failedCommand = null;
 
         for (const command of currentPlan) {
             try {
@@ -75,7 +78,6 @@ async function main() {
             } catch (error: any) {
                 console.error(`Command failed: ${command.command}`, error.message);
                 lastError = error.message;
-                failedCommand = command;
                 executionFailed = true;
                 break;
             }

@@ -1,7 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
 
-// Since this script is in the same directory as dist/, we can use relative paths
 const serverPath = path.resolve(__dirname, 'dist/index.js');
 const serverProcess = spawn('node', [serverPath], { stdio: ['pipe', 'pipe', 'pipe'] });
 
@@ -36,7 +35,6 @@ setTimeout(() => {
     console.log("--- Starting test ---");
     sendRequest('bmad-execute-prompt', {
         prompt: "Create a simple scene with a single Sprite2D node.",
-        llm_provider: "ollama" // Use ollama to avoid needing real API keys for the test
     });
 }, 3000); // Wait 3 seconds for the server to initialize
 
