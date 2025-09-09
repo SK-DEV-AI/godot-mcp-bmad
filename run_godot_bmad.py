@@ -107,7 +107,7 @@ async def main():
         "prompt", type=str, help="The high-level prompt describing the desired changes."
     )
     parser.add_argument(
-        "--uri", type=str, default="ws://localhost:6969", help="The WebSocket URI of the Godot-MCP server."
+        "--uri", type=str, default="ws://localhost:64007", help="The WebSocket URI of the Godot-MCP server."
     )
     args = parser.parse_args()
 
