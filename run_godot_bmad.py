@@ -20,7 +20,13 @@ class GodotMcpOrchestrator:
         print(f"Connecting to Godot MCP server at {server_uri}...")
         try:
             async with websockets.connect(server_uri) as websocket:
-                print("Connection established. Executing commands...")
+                print("Connection established.")
+
+                # FIX #3: Consume the initial 'welcome' message from the server.
+                welcome_message = await websocket.recv()
+                print(f"Server handshake complete. Received: {welcome_message}")
+
+                print("Executing commands...")
                 for i, command_data in enumerate(command_list):
                     method = command_data.get("command")
                     params = command_data.get("parameters", {})
@@ -44,6 +50,7 @@ class GodotMcpOrchestrator:
                     response = json.loads(response_str)
 
                     if response.get("id") != request_id:
+                        print(f"DEBUG: Raw server response: {response}")
                         print(f"Error: Received response for unexpected ID. Expected {request_id}, got {response.get('id')}. Halting.")
                         return
 
@@ -78,21 +85,22 @@ def invoke_bmad_agent_system_simulation(prompt: str) -> list:
     print("INFO: Returning hard-coded JSON plan for demonstration.")
     print("---")
 
+    # FIX #2: Corrected the command and parameter names to match the server's API.
     example_plan = [
         {
-            "command": "create_scene",
+            "command": "create-scene",
             "parameters": { "path": "res://new_bmad_scene.tscn" }
         },
         {
-            "command": "create_node",
-            "parameters": { "parent_path": "/root", "node_type": "Sprite2D", "node_name": "Icon" }
+            "command": "create-node",
+            "parameters": { "parent": ".", "type": "Sprite2D", "name": "Icon" }
         },
         {
-            "command": "update_node_property",
-            "parameters": { "node_path": "/root/Icon", "property": "texture", "value": "res://icon.svg" }
+            "command": "update-node-property",
+            "parameters": { "node": "Icon", "property": "texture", "value": "res://icon.svg" }
         },
         {
-            "command": "save_scene",
+            "command": "save-scene",
             "parameters": {}
         }
     ]
@@ -106,8 +114,9 @@ async def main():
     parser.add_argument(
         "prompt", type=str, help="The high-level prompt describing the desired changes."
     )
+    # FIX #1: Corrected the default server URI to use the correct port.
     parser.add_argument(
-        "--uri", type=str, default="ws://localhost:64007", help="The WebSocket URI of the Godot-MCP server."
+        "--uri", type=str, default="ws://localhost:9080", help="The WebSocket URI of the Godot-MCP server."
     )
     args = parser.parse_args()
 
