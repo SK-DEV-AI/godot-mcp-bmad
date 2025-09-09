@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: '../../.env' });
 
-// There is no local MCPTool type in the starter repo, so we define one.
-// This is based on the structure of the existing tools.
+// I am defining the MCPTool type locally based on the existing tools in the project,
+// as it is not exported from the fastmcp library.
 export interface MCPTool<T extends z.ZodTypeAny = z.ZodTypeAny> {
     name: string;
     description: string;
@@ -34,7 +34,6 @@ import { editorStateResource, selectedNodeResource, currentScriptResource } from
 
 const MAX_RETRIES = 3;
 
-// Combine all low-level tools into a single map for easy lookup
 const allTools = [...nodeTools, ...scriptTools, ...sceneTools, ...editorTools];
 const toolMap = new Map(allTools.map(tool => [tool.name, tool]));
 
@@ -55,7 +54,7 @@ async function main() {
     name: 'bmad-execute-prompt',
     description: 'Takes a high-level prompt and uses the full BMAD agent workflow to generate and execute a command plan.',
     parameters: bmadToolSchema,
-    execute: async (params: BmadToolParams) => {
+    execute: async (params: BmadToolParams): Promise<string> => {
       const provider = process.env.DEFAULT_LLM_PROVIDER || 'ollama';
       console.log(`Received bmad-execute-prompt. Using server-configured provider: ${provider}`);
 
@@ -106,8 +105,9 @@ async function main() {
         }
 
         if (!executionFailed) {
-            console.log("\n--- ✅ PLAN EXECUTED SUCCESSFULLY ---");
-            return JSON.stringify({ success: true, message: "Plan executed successfully." });
+            const successMsg = "Plan executed successfully.";
+            console.log(`\n--- ✅ ${successMsg} ---`);
+            return JSON.stringify({ success: true, message: successMsg });
         }
 
         console.log("\n--- ⚠️ PLAN EXECUTION FAILED ---");
