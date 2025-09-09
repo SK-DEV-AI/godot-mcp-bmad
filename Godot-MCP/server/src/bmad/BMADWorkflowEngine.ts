@@ -6,13 +6,13 @@ import { BaseLlmClient } from '../llm-connectors/base_client';
 // Helper to load and parse a BMAD agent definition from the expansion pack
 async function loadAgentPrompt(agentFileName: string): Promise<string> {
     try {
+        // Use process.cwd() to get the project root and build a reliable path
         const fullPath = path.resolve(process.cwd(), `expansion-packs/bmad-godot-game-dev/agents/${agentFileName}`);
         const fileContent = await fs.readFile(fullPath, 'utf-8');
 
         const yamlMatch = fileContent.match(/```yaml([\s\S]*?)```/);
         if (!yamlMatch) {
-            // Fallback for simple markdown prompts that might not have a YAML block
-            return fileContent;
+            return fileContent; // Fallback for simple markdown prompts
         }
 
         const yamlContent = yaml.load(yamlMatch[1]);
@@ -53,6 +53,7 @@ export class BMADWorkflowEngine {
         this.analystPrompt = await loadAgentPrompt('game-analyst.md');
         this.architectPrompt = await loadAgentPrompt('game-architect.md');
 
+        // Fix the developer prompt path to be relative to the project root
         const devPromptPath = path.resolve(process.cwd(), 'Godot-MCP/server/src/bmad/prompts/godot_developer.md');
         this.developerPrompt = await fs.readFile(devPromptPath, 'utf-8');
     }
@@ -83,13 +84,10 @@ export class BMADWorkflowEngine {
 
         const correctionRequest = `
 The previous execution plan failed. Your task is to analyze the error and provide a new, corrected JSON plan that fixes the issue.
-
 Original Plan that Failed:
 ${JSON.stringify(failedPlan, null, 2)}
-
 The error message from the server was:
 ${errorMessage}
-
 Please provide a full, new JSON array of commands that corrects this error and still accomplishes the original goal. Do not include any explanations or markdown, only the raw JSON array.`;
 
         console.log("Generating corrected plan...");

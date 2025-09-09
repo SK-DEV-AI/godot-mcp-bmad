@@ -5,9 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/bmad/prompts dist/bmad/",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch src --exec \"tsc && node dist/index.js\"",
+    "dev": "nodemon --watch src --exec \"npm run build && node dist/index.js\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -20,7 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@google-ai/generativelanguage": "^3.4.0",
+    "@google/genai": "^0.2.1",
     "dotenv": "^16.4.5",
     "fastmcp": "^1.20.4",
     "groq-sdk": "^0.5.0",
