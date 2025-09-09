@@ -1,8 +1,8 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { BaseLlmClient } from './base_client';
 
 export class GeminiClient implements BaseLlmClient {
-    private readonly client: GoogleGenerativeAI;
+    private readonly client: GoogleGenAI;
     private readonly model: string;
 
     constructor() {
@@ -12,13 +12,12 @@ export class GeminiClient implements BaseLlmClient {
         if (!apiKey || apiKey.includes('YOUR_GEMINI_API_KEY_HERE')) {
             throw new Error('Gemini API key is missing or not set in .env file');
         }
-        this.client = new GoogleGenerativeAI(apiKey);
+        this.client = new GoogleGenAI(apiKey);
     }
 
     async generatePlan(systemPrompt: string, userPrompt: string): Promise<string> {
         const model = this.client.getGenerativeModel({
             model: this.model,
-            // System instructions are a new feature and might be the best place for the system prompt
             systemInstruction: systemPrompt,
         });
 
@@ -28,7 +27,6 @@ export class GeminiClient implements BaseLlmClient {
                 responseMimeType: "application/json",
                 temperature: 0,
             },
-            // Safety settings are important for Gemini
             safetySettings: [
                 {
                     category: HarmCategory.HARM_CATEGORY_HARASSMENT,

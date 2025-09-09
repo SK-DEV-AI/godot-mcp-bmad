@@ -1,8 +1,11 @@
-import { FastMCP, McpTool } from 'fastmcp';
+import { FastMCP } from 'fastmcp';
 import { z } from 'zod';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '../../.env' });
+
+// Correctly import the local MCPTool type
+import { MCPTool } from './utils/types.js';
 
 import { nodeTools } from './tools/node_tools.js';
 import { scriptTools } from './tools/script_tools.js';
@@ -25,6 +28,10 @@ import { editorStateResource, selectedNodeResource, currentScriptResource } from
 
 const MAX_RETRIES = 3;
 
+// Combine all low-level tools into a single map for easy lookup
+const allTools = [...nodeTools, ...scriptTools, ...sceneTools, ...editorTools];
+const toolMap = new Map(allTools.map(tool => [tool.name, tool]));
+
 async function main() {
   console.error('Starting Godot MCP server with full BMAD integration...');
 
@@ -33,13 +40,19 @@ async function main() {
     version: '3.0.0',
   });
 
-  const bmadExecutePromptTool: McpTool = {
+  // Define the schema for the tool parameters
+  const bmadToolSchema = z.object({
+    prompt: z.string().describe('The high-level user request.'),
+  });
+  // Infer the type from the schema
+  type BmadToolParams = z.infer<typeof bmadToolSchema>;
+
+  const bmadExecutePromptTool: MCPTool = {
     name: 'bmad-execute-prompt',
     description: 'Takes a high-level prompt and uses the full BMAD agent workflow to generate and execute a command plan.',
-    schema: z.object({
-      prompt: z.string().describe('The high-level user request.'),
-    }),
-    handler: async (params) => {
+    schema: bmadToolSchema,
+    // Use the inferred type for the params
+    handler: async (params: BmadToolParams) => {
       const provider = process.env.DEFAULT_LLM_PROVIDER || 'ollama';
       console.log(`Received bmad-execute-prompt. Using server-configured provider: ${provider}`);
 
@@ -72,9 +85,16 @@ async function main() {
         let executionFailed = false;
 
         for (const command of currentPlan) {
+            const toolToExecute = toolMap.get(command.command);
+            if (!toolToExecute) {
+                lastError = `Command not found: ${command.command}`;
+                executionFailed = true;
+                break;
+            }
             try {
                 console.log(`Executing command: ${command.command}`, command.parameters);
-                await server.callTool(command.command, command.parameters);
+                // Call the tool's handler directly
+                await toolToExecute.handler(command.parameters);
             } catch (error: any) {
                 console.error(`Command failed: ${command.command}`, error.message);
                 lastError = error.message;
@@ -104,10 +124,12 @@ async function main() {
     },
   };
 
-  [...nodeTools, ...scriptTools, ...sceneTools, ...editorTools, bmadExecutePromptTool].forEach(tool => {
+  // Register all tools
+  [...allTools, bmadExecutePromptTool].forEach(tool => {
     server.addTool(tool as McpTool);
   });
 
+  // Register all resources
   [sceneListResource, sceneStructureResource, scriptResource, scriptListResource, scriptMetadataResource, projectStructureResource, projectSettingsResource, projectResourcesResource, editorStateResource, selectedNodeResource, currentScriptResource].forEach(resource => {
     server.addResource(resource);
   });
