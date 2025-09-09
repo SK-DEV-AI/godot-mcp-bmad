@@ -1,54 +1,44 @@
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { TextServiceClient } from "@google-ai/generativelanguage/build/src/v1beta2";
+import { auth } from 'google-auth-library';
 import { BaseLlmClient } from './base_client';
 
 export class GeminiClient implements BaseLlmClient {
-    private readonly client: GoogleGenAI;
+    private readonly client: TextServiceClient;
     private readonly model: string;
 
     constructor() {
         const apiKey = process.env.GEMINI_API_KEY;
-        this.model = process.env.GEMINI_MODEL || 'gemini-1.5-pro-latest';
+        this.model = process.env.GEMINI_MODEL || 'models/text-bison-001'; // A common model for generateText
 
         if (!apiKey || apiKey.includes('YOUR_GEMINI_API_KEY_HERE')) {
             throw new Error('Gemini API key is missing or not set in .env file');
         }
-        this.client = new GoogleGenAI(apiKey);
+
+        // The TextServiceClient uses google-auth-library for authentication.
+        // We create an auth client that can hold the API key.
+        this.client = new TextServiceClient({
+            authClient: auth.fromAPIKey(apiKey),
+        });
     }
 
     async generatePlan(systemPrompt: string, userPrompt: string): Promise<string> {
-        const model = this.client.getGenerativeModel({
+        // The generateText API doesn't have a dedicated system prompt field.
+        // We combine them into a single prompt for the model.
+        const combinedPrompt = `${systemPrompt}\n\nUser Request: ${userPrompt}`;
+
+        const [response] = await this.client.generateText({
             model: this.model,
-            systemInstruction: systemPrompt,
-        });
-
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0,
+            prompt: {
+                text: combinedPrompt,
             },
-            safetySettings: [
-                {
-                    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-            ]
+            // Settings to ensure JSON output if possible, though not guaranteed
+            temperature: 0,
         });
 
-        const response = result.response;
-        const text = response.text();
-        return text;
+        if (response.candidates && response.candidates.length > 0 && response.candidates[0].output) {
+            return response.candidates[0].output;
+        } else {
+            throw new Error('Gemini API returned no candidates or empty output.');
+        }
     }
 }

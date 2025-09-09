@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: '../../.env' });
 
-// Correctly import the local MCPTool type
+// Correctly import the local MCPTool type from its definition file
 import { MCPTool } from './utils/types.js';
 
 import { nodeTools } from './tools/node_tools.js';
@@ -44,15 +44,16 @@ async function main() {
   const bmadToolSchema = z.object({
     prompt: z.string().describe('The high-level user request.'),
   });
-  // Infer the type from the schema
+  // Infer the type from the schema for type safety
   type BmadToolParams = z.infer<typeof bmadToolSchema>;
 
   const bmadExecutePromptTool: MCPTool = {
     name: 'bmad-execute-prompt',
     description: 'Takes a high-level prompt and uses the full BMAD agent workflow to generate and execute a command plan.',
-    schema: bmadToolSchema,
-    // Use the inferred type for the params
-    handler: async (params: BmadToolParams) => {
+    // FIX: The property for parameters in the local MCPTool type is 'parameters', not 'schema'.
+    parameters: bmadToolSchema,
+    // Use the inferred type for the params to fix implicit 'any' error
+    execute: async (params: BmadToolParams) => {
       const provider = process.env.DEFAULT_LLM_PROVIDER || 'ollama';
       console.log(`Received bmad-execute-prompt. Using server-configured provider: ${provider}`);
 
@@ -93,8 +94,8 @@ async function main() {
             }
             try {
                 console.log(`Executing command: ${command.command}`, command.parameters);
-                // Call the tool's handler directly
-                await toolToExecute.handler(command.parameters);
+                // FIX: The method to call is 'execute', not 'handler'.
+                await toolToExecute.execute(command.parameters);
             } catch (error: any) {
                 console.error(`Command failed: ${command.command}`, error.message);
                 lastError = error.message;
@@ -126,7 +127,8 @@ async function main() {
 
   // Register all tools
   [...allTools, bmadExecutePromptTool].forEach(tool => {
-    server.addTool(tool as McpTool);
+    // FIX: The type name is MCPTool (all caps), not McpTool
+    server.addTool(tool as MCPTool);
   });
 
   // Register all resources
