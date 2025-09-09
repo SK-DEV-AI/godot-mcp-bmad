@@ -1,0 +1,5 @@
+openai
+groq
+requests
+websockets
+python-dotenv
