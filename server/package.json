@@ -1,22 +1,22 @@
 {
   "name": "godot-mcp-server",
-  "version": "1.0.0",
-  "description": "Godot MCP Server using FastMCP",
+  "version": "1.1.0",
+  "description": "Unified Godot MCP Server merging both versions with FastMCP support",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "godot-mcp": "./dist/index.js"
+  },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
+    "watch": "tsc --watch",
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --exec \"tsc && node dist/index.js\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "godot",
-    "mcp",
-    "fastmcp",
-    "claude",
-    "ai"
-  ],
+  "keywords": ["godot", "mcp", "fastmcp", "ai", "claude"],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -26,9 +26,13 @@
     "zod": "^3.21.4"
   },
   "devDependencies": {
-    "@types/node": "^20.3.1",
+    "@types/node": "^20.11.24",
     "@types/ws": "^8.5.5",
     "nodemon": "^2.0.22",
-    "typescript": "^5.1.3"
+    "typescript": "^5.3.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Coding-Solo/godot-mcp.git"
   }
 }
